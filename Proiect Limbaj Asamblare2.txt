@@ -1,0 +1,154 @@
+;                PROIECT BTI- Carp Ana-Maria
+; Problema: Se citeste de la tastatura un numar intreg pozitiv. Sa se afiseze rezultatul comparatiei dintre numarul citit si numarul rezultat prin inversarea cifrelor acestuia.
+
+.Model small
+.Stack 200H ;rezerv in stiva 512 octeti
+.Data ; segmentul de date, aici declaram variabilele
+
+Mesaj1 DB 'Numarul introdus este mai mic decat numarul rezultat prin inversarea cifrelor acestuia.$'
+Mesaj2 DB 'Numarul introdus este egal numarul rezultat prin inversarea cifrelor acestuia.$'
+Mesaj3 DB 'Numarul introdus este mai mare decat numarul rezultat prin inversarea cifrelor acestuia.$'
+numarinitial DB 0
+nrcifre DB 0
+
+
+.Code ; segmentul de cod, unde vom memora instructiunile
+
+ProgramStart:
+mov bx,@data ; cautam loc disponibil in memorie unde sa stocam proiectul 
+mov ds,bx
+
+call citire ; apelam procedura de citire
+
+call invers ; apelam procedura ce calculeaza inversul numarului introdus
+
+mov al, numarinitial ; mutam numarul citit in al pentru a-l putea compara cu inversul sau
+
+cmp al,cl ; compar numarul citit(al) cu numarul inversat(cl), daca este egal facem jump la eticheta egal
+je egal
+
+cmp al,cl ; compar numarul citit(al) cu numarul inversat(cl), daca este mai mare facem jump la eticheta maimare
+jg maimare
+
+; daca nu am intrat pe cele doua conditii ( adica numarul citit nu este nici egal nici mai mare cu inversul sau) inseamna ca numarul citit este mai mic decat inversul sau
+
+call afisare_mesaj3 ; apelam procedura de afisare a mesajului 3
+
+; incheiem programul fara a mai parcurge restul
+mov ah, 4cH ; inserez o intrerupere cu codul 4cH, ce iese din program
+int 21H ; invoc tabela de intreruperi
+
+maimic:
+call afisare_mesaj3 ; apelam procedura de afisare a mesajului3
+jmp stop
+
+egal:
+call afisare_mesaj2 ; apelam procedura de afisare a mesajului2
+jmp stop
+
+maimare:
+call afisare_mesaj1 ; apelam procedura de afisare a mesajului1
+jmp stop
+
+stop:
+mov ah, 4cH ; inserez o intrerupere cu codul 4cH, ce iese din program
+int 21H ; invoc tabela de intreruperi
+
+
+;------------------Procedura ce calculeaza inversul numarului----------------
+
+invers:
+; acesta va fi memorat in cl
+
+mov al,numarinitial
+mov cl,0 ; in cl construim inversul
+mov bl,10 ; mutam in bl baza in care lucram, adica 10
+
+Calcul_invers:
+;xchg poate avea ca parametrii: 2 registrii, memorie si registru, registru si memorie
+
+xchg al,cl ;instructiunea xchg in acest caz are efectul urmator: al ia valoarea lui cl, iar cl ia valoarea lui al
+mul bl ;instructiunea mul poate lucra doar cu ax; 
+        ; rezultatul este al=10*al ( dar al=cl => al=10*cl, unde cl este locul in care vom construi inversul numarului)
+
+xchg al,cl ; interschimbam din nou valorile, al=cl si cl=al deci cl=10*cl
+
+; pregatim impartirea
+div bl ; rezultatul este:
+       ; deoarece numarinitial este de tip DB ; 
+	   ; catul impartirii va fi retinut in al=ax/10
+	   ; restul impartirii va fi retinut in ah=ax%10, restul impartirii este fiecare cifra a numarului incepand cu ultima pana la prima
+	
+add cl,ah ; adaugam cifra scoasa prin restul impartirii la cl  cl=cl*10+cifra memorata in ah
+
+sub nrcifre,1 ; scadem de fiecare data 1 din numarul de cifre
+cmp nrcifre,0 ; comparam nrcifre cu 0, adica daca mai avem cifre in ax
+jnz Calcul_invers ; daca este 0 iese din loop, altfel continua procedeul anterior pana devine 0
+
+ret
+
+;-------------------Procedurile de afisare a mesajelor------------------------
+
+afisare_mesaj1:
+mov dx, offset Mesaj1 ; ma plimb in dx pana gasesc Mesaj1
+mov ah,09 ; inserez o intrerupere cu codul 09, ce scrie un string
+int 21h ; invoc tabela de intreruperi
+
+ret; reda controlul programului principal
+
+afisare_mesaj2:
+mov dx, offset Mesaj2 ; ma plimb in dx pana gasesc Mesaj2
+mov ah,09 ; inserez o intrerupere cu codul 09, ce scrie un string
+int 21h ; invoc tabela de intreruperi
+
+ret
+
+afisare_mesaj3:
+mov dx, offset Mesaj3 ; ma plimb in dx pana gasesc Mesaj3
+mov ah,09 ; inserez o intrerupere cu codul 09, ce scrie un string
+int 21h ; invoc tabela de intreruperi
+
+ret
+
+
+; ----------------- Procedura de citire a unui numar de la tastatura---------------
+
+citire:
+
+;citim caracter
+mov ah,01H; Intrerupere DOS ce citeste caracter
+int 21H; Invocam tabela de intreruperi
+
+mov ah,0
+Reia:
+
+;convertesc caracterul in cifra
+sub al,30H
+
+;salvez valoarea al pentru ca ea se va pierde
+mov bl,al
+
+;pregatesc inmultirea
+mov dl,numarinitial
+mov al,10
+inc nrcifre ; calculeaza numarul de cifre al numarului
+mul dl
+add al,bl
+mov numarinitial,al; numarul citit va fi stocat la sfarsit in numarinitial
+
+
+;citim caracter
+mov ah,01H; inserez o intrerupere cu codul 01, ce citeste caracter
+int 21H; invoc tabela de intreruperi
+
+mov ah,0
+
+cmp al,0dH
+jg Reia ; daca caracterul citit e enter(adica am terminat de citit numarul) procedura se opreste, altfel reluam tot procesul de la eticheta Reia
+
+
+ret
+
+End ProgramStart
+
+
